@@ -30,5 +30,11 @@ public class LocationService {
                 driverLocationRequest.getLongitude(),
                 driverLocationRequest.getLatitude()
         );
+
+        redisTemplate.opsForGeo().add(
+                DRIVERS_GEO_KEY,
+                driverPoint,
+                driverLocationRequest.getDriverId()
+        );
     }
 }
