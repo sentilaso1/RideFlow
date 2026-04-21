@@ -36,5 +36,7 @@ public class LocationService {
                 driverPoint,
                 driverLocationRequest.getDriverId()
         );
+
+        log.info("Location update for driver: {}", driverLocationRequest.getDriverId());
     }
 }
