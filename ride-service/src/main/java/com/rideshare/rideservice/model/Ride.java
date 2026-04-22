@@ -1,8 +1,11 @@
 package com.rideshare.rideservice.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -10,7 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "rides")
 @Data
 @NoArgsConstructor
-@NoArgsConstructor
+@AllArgsConstructor
 public class Ride {
 
     @Id
@@ -44,6 +47,8 @@ public class Ride {
     private String dropAddress;
 
     //Ride status = tracks the lifecycle
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RideStatus status;
 
     //Fare Details
@@ -51,12 +56,13 @@ public class Ride {
     private double actualFare;
 
     //Timestamps
+    @CreationTimestamp
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     private LocalDateTime startedAt;
-
     private LocalDateTime completedAt;
 
 }
