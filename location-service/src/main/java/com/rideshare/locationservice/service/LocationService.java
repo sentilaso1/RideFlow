@@ -1,11 +1,17 @@
 package com.rideshare.locationservice.service;
 
 import com.rideshare.locationservice.dto.DriverLocationRequest;
+import com.rideshare.locationservice.dto.NearByDriverResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.geo.Circle;
+import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.Metrics;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @Slf4j
@@ -38,5 +44,23 @@ public class LocationService {
         );
 
         log.info("Location update for driver: {}", driverLocationRequest.getDriverId());
+    }
+
+    /**
+     * Find nearby drivers within the given radius.
+     * Called by Matching service on ride request.
+     * Maps to Redis GEORADIUS command.
+     */
+
+    public List<NearByDriverResponse> findNearbyDrivers(
+            double latitude, double longitude, double radiusInKm){
+
+        log.info("Finding drivers near lat: {} long:{} within {}Km",
+                latitude, longitude, radiusInKm);
+
+        Circle searchArea = new Circle(
+                new Point(longitude, latitude),
+                new Distance(radiusInKm, Metrics. KILOMETERS)
+        );
     }
 }
