@@ -63,7 +63,7 @@ public class LocationService {
         );
 
 
-        GeoResults<RedisGeoCommands.GeoLocation<String>> result =
+        GeoResults<RedisGeoCommands.GeoLocation<String>> results =
                 redisTemplate.opsForGeo().radius(
                         DRIVERS_GEO_KEY,
                         searchArea,
@@ -74,5 +74,18 @@ public class LocationService {
                                 .limit(10)
                 );
         List<NearByDriverResponse> nearbyDrivers = new ArrayList<>();
+        if (results!=null){
+            results.getContent().forEach(result -> {
+                RedisGeoCommands.GeoLocation<String> location = result.getContent();
+                nearbyDrivers.add(new NearByDriverResponse(
+                        location.getName(),
+                        location.getPoint().getY(),
+                        location.getPoint().getX(),
+                        result.getDistance().getValue()
+                ));
+            });
+        }
+        log.info("Found {} drivers nearby", nearbyDrivers.size());
+        return nearbyDrivers;
      }
 }
