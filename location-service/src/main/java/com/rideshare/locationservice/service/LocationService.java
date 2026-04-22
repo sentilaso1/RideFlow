@@ -4,13 +4,12 @@ import com.rideshare.locationservice.dto.DriverLocationRequest;
 import com.rideshare.locationservice.dto.NearByDriverResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.geo.Circle;
-import org.springframework.data.geo.Distance;
-import org.springframework.data.geo.Metrics;
-import org.springframework.data.geo.Point;
+import org.springframework.data.geo.*;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -62,5 +61,18 @@ public class LocationService {
                 new Point(longitude, latitude),
                 new Distance(radiusInKm, Metrics. KILOMETERS)
         );
-    }
+
+
+        GeoResults<RedisGeoCommands.GeoLocation<String>> result =
+                redisTemplate.opsForGeo().radius(
+                        DRIVERS_GEO_KEY,
+                        searchArea,
+                        RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs()
+                                .includeCoordinates()
+                                .includeDistance()
+                                .sortAscending()
+                                .limit(10)
+                );
+        List<NearByDriverResponse> nearbyDrivers = new ArrayList<>();
+     }
 }
