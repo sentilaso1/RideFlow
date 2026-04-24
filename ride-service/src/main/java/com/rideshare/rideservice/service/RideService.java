@@ -46,7 +46,21 @@ public class RideService {
         // Mathcing service will consume and will find nearest driver
 
         RideRequestedEvent event = new RideRequestedEvent(
+                savedRide.getId(),
+                savedRide.getRiderId(),
+                savedRide.getPickupLatitude(),
+                savedRide.getDropLongitude(),
+                savedRide.getPickupAddress(),
+                savedRide.getDropLatitude(),
+                savedRide.getDropLongitude(),
+                savedRide.getDropAddress()
+        );
 
-        )
+        kafkaTemplate.send(RIDE_REQUESTED_TOPIC, savedRide.getId(), event);
+        log.info("RideRequestedEvent published to Kafka for ride: {}", savedRide.getId());
+
+        //Update status to Matching
+        savedRide.setStatus(RideStatus.MATCHING);
+        rideRepository.save(savedRide);
     }
 }
