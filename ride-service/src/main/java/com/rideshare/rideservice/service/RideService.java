@@ -66,6 +66,20 @@ public class RideService {
         return mapToResponse(savedRide);
     }
 
+    // To Update the Status, that is when a driver accepts a rider request we will change the status from mathcing to accepted
+    // And assigns the driver ID
+    public void updateRideWithDriver(String rideId, String driveId){
+        Ride ride =rideRepository.findById(rideId)
+                .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        ride.setDrvierId(driveId);
+        ride.setStatus(RideStatus.ACCEPTED);
+        rideRepository.save(ride);
+    }
+
+
+
+
     private RideResponse mapToResponse(Ride ride){
         RideResponse response = new RideResponse();
         response.setId(ride.getId());
