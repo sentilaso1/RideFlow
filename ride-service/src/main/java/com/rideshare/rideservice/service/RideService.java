@@ -24,7 +24,7 @@ public class RideService {
      * create ride in DB with REQUESTED STATUS
      */
 
-    public RideResponse requesRide(RideRequest request){
+    public RideResponse requestRide(RideRequest request){
         log.info("New ride request from rider: {}",request.getRiderID());
 
         //Step 1: save ride to database
@@ -62,5 +62,27 @@ public class RideService {
         //Update status to Matching
         savedRide.setStatus(RideStatus.MATCHING);
         rideRepository.save(savedRide);
+
+        return mapToResponse(savedRide);
+    }
+
+    private RideResponse mapToResponse(Ride ride){
+        RideResponse response = new RideResponse();
+        response.setId(ride.getId());
+        response.setRiderId(ride.getRiderId());
+        response.setDrvierId(ride.getDrvierId());
+        response.setPickupLatitude(ride.getPickupLatitude());
+        response.setPickupLongitude(ride.getPickupLongitude());
+        response.setPickupAddress(ride.getPickupAddress());
+        response.setDropLatitude(ride.getDropLatitude());
+        response.setDropLongitude(ride.getDropLongitude());
+        response.setDropAddress(ride.getDropAddress());
+        response.setStatus(ride.getStatus());
+        response.setEstimatedFare(ride.getEstimatedFare());
+        response.setActualFare(ride.getActualFare());
+        response.setCreatedAt(ride.getCreatedAt());
+        response.setStartedAt(ride.getStartedAt());
+        response.setCompletedAt(ride.getCompletedAt());
+        return response;
     }
 }
