@@ -77,6 +77,16 @@ public class RideService {
         rideRepository.save(ride);
     }
 
+    public RideResponse startRide(String rideID){
+        Ride ride =rideRepository.findById(rideID)
+                .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        if(ride.getStatus() != RideStatus.ACCEPTED){
+            throw new RuntimeException("Ride cannot be started. Current status: "+ride.getStatus());
+        }
+        ride.setStatus(RideStatus.RIDE_STARTED);
+    }
+
 
 
 
