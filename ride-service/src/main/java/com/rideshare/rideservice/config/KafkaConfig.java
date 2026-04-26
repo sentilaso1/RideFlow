@@ -9,7 +9,7 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaConfig {
 
     //Topic where Ride Service publishes ride request
-    //Mathcing Service subcribers to this topic
+    //Matching Service subcribers to this topic
 
     @Bean
     public NewTopic rideRequestedTopic(){
@@ -18,4 +18,17 @@ public class KafkaConfig {
                 .replicas(1)
                 .build();
     }
+
+    //Topic where Matching Service publishes match results
+    //RIde service subscribers to this topic
+
+    @Bean
+    public NewTopic rideMatchedTopic(){
+        return TopicBuilder.name("ride.matched")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+
 }
