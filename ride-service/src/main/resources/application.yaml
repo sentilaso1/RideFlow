@@ -7,7 +7,7 @@ spring:
 
 #MySQL Database
     datasource:
-      url: jdbc:mysql://localhost:3306/uberapp;
+      url: jdbc:mysql://localhost:3306/uberapp
       username: root
       password:
       driver-class-name: com.mysql.cj.jdbc.Driver
@@ -27,7 +27,7 @@ spring:
       bootstrap-servers: localhost:9092
       producer:
         key-serializer: org.apache.kafka.common.serialization.StringSerializer
-        valur-serializer: org.srping-framework.kafka.support.serializer.JsonSerializer
+        value-serializer: org.srping-framework.kafka.support.serializer.JsonSerializer
 
 #Actuator
 management:
