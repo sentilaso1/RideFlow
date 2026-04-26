@@ -1,10 +1,17 @@
 package com.rideshare.matchingservice.event;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 /**
  * Event consumed from Kafka topic: ride.reuqested
  * Published by Ride Service when a rider requests a ride
  */
 
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class RideRequestedEvent {
 
     private String riderId;
