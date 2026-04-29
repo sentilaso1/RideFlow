@@ -59,7 +59,7 @@ public class LocationService {
 
         Circle searchArea = new Circle(
                 new Point(longitude, latitude),
-                new Distance(radiusInKm, Metrics. KILOMETERS)
+                new Distance(radiusInKm, Metrics.KILOMETERS)
         );
 
 
