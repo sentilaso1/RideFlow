@@ -21,7 +21,7 @@ public class RideResponse {
     private double dropLatitude;
     private double dropLongitude;
     private String dropAddress;
-    //Ride status = tracks the lifecycle
+    // Ride status - tracks the lifecycle
     private RideStatus status;
     private double estimatedFare;
     private double actualFare;
