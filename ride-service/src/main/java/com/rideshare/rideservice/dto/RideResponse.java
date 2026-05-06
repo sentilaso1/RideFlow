@@ -14,7 +14,7 @@ public class RideResponse {
 
     private String id;
     private String riderId;
-    private String drvierId;
+    private String driverId;
     private double pickupLatitude;
     private double pickupLongitude;
     private String pickupAddress;

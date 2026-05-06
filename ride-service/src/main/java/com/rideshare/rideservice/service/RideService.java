@@ -47,7 +47,7 @@ public class RideService {
         Ride savedRide = rideRepository.save(ride);
 
         // Step 2: Publish event to Kafka
-        // Mathcing service will consume and will find nearest driver
+        // Matching service will consume and will find nearest driver
 
         RideRequestedEvent event = new RideRequestedEvent(
                 savedRide.getId(),
@@ -163,7 +163,7 @@ public class RideService {
         RideResponse response = new RideResponse();
         response.setId(ride.getId());
         response.setRiderId(ride.getRiderId());
-        response.setDrvierId(ride.getDriverId());
+        response.setDriverId(ride.getDriverId());
         response.setPickupLatitude(ride.getPickupLatitude());
         response.setPickupLongitude(ride.getPickupLongitude());
         response.setPickupAddress(ride.getPickupAddress());
