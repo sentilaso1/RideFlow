@@ -36,7 +36,7 @@ public class RideService {
         Ride ride = new Ride();
         ride.setRiderId(request.getRiderId());
         ride.setPickupLatitude(request.getPickupLatitude());
-        ride.setPickupLongitude(request.getGetPickupLongitude());
+        ride.setPickupLongitude(request.getPickupLongitude());
         ride.setPickupAddress(request.getPickupAddress());
         ride.setDropLatitude(request.getDropLatitude());
         ride.setDropLongitude(request.getDropLongitude());
@@ -53,7 +53,7 @@ public class RideService {
                 savedRide.getId(),
                 savedRide.getRiderId(),
                 savedRide.getPickupLatitude(),
-                savedRide.getDropLongitude(),
+                savedRide.getPickupLongitude(),
                 savedRide.getPickupAddress(),
                 savedRide.getDropLatitude(),
                 savedRide.getDropLongitude(),
@@ -138,7 +138,7 @@ public class RideService {
         double lat1 = Math.toRadians(request.getPickupLatitude());
         double lat2 = Math.toRadians(request.getDropLatitude());
 
-        double lon1 = Math.toRadians(request.getPickupLatitude());
+        double lon1 = Math.toRadians(request.getPickupLongitude());
         double lon2 = Math.toRadians(request.getDropLongitude());
 
         double dLat = lat2 - lat1;
