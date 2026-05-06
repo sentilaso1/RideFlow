@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RideRequestedEvent {
-    private String rideID;
-    private String riderID;
+    private String rideId;
+    private String riderId;
 
     //PICKUP
     private double pickupLatitude;

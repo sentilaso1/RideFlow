@@ -26,18 +26,18 @@ public class RideController {
     public ResponseEntity<RideResponse> requestRide(
             @Valid @RequestBody RideRequest rideRequest){
 
-        log.info("Ride request received from rider: {}", rideRequest.getRiderID());
+        log.info("Ride request received from rider: {}", rideRequest.getRiderId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(rideService.requestRide(rideRequest));
     }
 
     @GetMapping("/{rideId}")
     public ResponseEntity<RideResponse> getRideById(
-            @PathVariable String rideID){
-        return ResponseEntity.ok(rideService.getRideById(rideID));
+            @PathVariable String rideId){
+        return ResponseEntity.ok(rideService.getRideById(rideId));
     }
 
-    @GetMapping("/rider/{rideId}")
+    @GetMapping("/rider/{riderId}")
     public ResponseEntity<List<RideResponse>> getRideByRider(
             @PathVariable String riderId){
         return ResponseEntity.ok(rideService.getRidesByRider(riderId));
