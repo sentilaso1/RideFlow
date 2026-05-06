@@ -21,7 +21,7 @@ public class RideController {
     private final RideService rideService;
 
 
-    //Rider requests a new ride
+    // Rider requests a new ride
     @PostMapping("/request")
     public ResponseEntity<RideResponse> requestRide(
             @Valid @RequestBody RideRequest rideRequest){
@@ -38,12 +38,12 @@ public class RideController {
     }
 
     @GetMapping("/rider/{riderId}")
-    public ResponseEntity<List<RideResponse>> getRideByRider(
+    public ResponseEntity<List<RideResponse>> getRidesByRider(
             @PathVariable String riderId){
         return ResponseEntity.ok(rideService.getRidesByRider(riderId));
     }
 
-    //Driver starts the Ride
+    // Driver starts the Ride
     @PutMapping("/{rideId}/start")
     public ResponseEntity<RideResponse> startRide(
             @PathVariable String rideId){
