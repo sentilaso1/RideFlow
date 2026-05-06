@@ -25,8 +25,7 @@ public class Ride {
     private String riderId;
 
     //Who accepted the ride (null until matched)
-    @Column(nullable = false)
-    private String drvierId;
+    private String driverId;
 
     @Column(nullable = false)
     private double pickupLatitude;

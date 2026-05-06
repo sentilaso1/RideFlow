@@ -12,13 +12,13 @@ import lombok.NoArgsConstructor;
 public class RideRequest {
 
     @NotBlank(message = "Rider Id is required")
-    private String riderID;
+    private String riderId;
 
     @NotNull(message = "Pickup latitude is required")
-    private double pickUpLatitude;
+    private double pickupLatitude;
 
     @NotNull(message = "Pickup longititude is required")
-    private double getPickUpLongitude;
+    private double getPickupLongitude;
 
     @NotNull(message = "Pickup Address is required")
     private String pickupAddress;

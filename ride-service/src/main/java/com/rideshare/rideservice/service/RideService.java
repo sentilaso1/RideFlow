@@ -29,14 +29,14 @@ public class RideService {
      */
 
     public RideResponse requestRide(RideRequest request){
-        log.info("New ride request from rider: {}",request.getRiderID());
+        log.info("New ride request from rider: {}",request.getRiderId());
 
         //Step 1: save ride to database
 
         Ride ride = new Ride();
-        ride.setRiderId(request.getRiderID());
-        ride.setPickupLatitude(request.getPickUpLatitude());
-        ride.setPickupLongitude(request.getGetPickUpLongitude());
+        ride.setRiderId(request.getRiderId());
+        ride.setPickupLatitude(request.getPickupLatitude());
+        ride.setPickupLongitude(request.getGetPickupLongitude());
         ride.setPickupAddress(request.getPickupAddress());
         ride.setDropLatitude(request.getDropLatitude());
         ride.setDropLongitude(request.getDropLongitude());
@@ -135,10 +135,10 @@ public class RideService {
 
     private double calculateEstimateFare(RideRequest request){
         //Simplified Haversine distance calculation
-        double lat1 = Math.toRadians(request.getPickUpLatitude());
+        double lat1 = Math.toRadians(request.getPickupLatitude());
         double lat2 = Math.toRadians(request.getDropLatitude());
 
-        double lon1 = Math.toRadians(request.getGetPickUpLongitude());
+        double lon1 = Math.toRadians(request.getPickupLatitude());
         double lon2 = Math.toRadians(request.getDropLongitude());
 
         double dLat = lat2 - lat1;

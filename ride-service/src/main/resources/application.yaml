@@ -1,38 +1,37 @@
 #Application
 server:
   port: 8083
+
 spring:
   application:
     name: ride-service
 
-#MySQL Database
-    datasource:
-      url: jdbc:mysql://localhost:3306/uberapp
-      username: root
-      password:
-      driver-class-name: com.mysql.cj.jdbc.Driver
+  #MySQL Database
+  datasource:
+    url: jdbc:mysql://localhost:3306/uberapp
+    username: root
+    password: "local-dev-password"
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-#JPA
+  #JPA
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
 
   #Kafka
-    kafka:
-      bootstrap-servers: localhost:9092
-      producer:
-        key-serializer: org.apache.kafka.common.serialization.StringSerializer
-        value-serializer: org.srping-framework.kafka.support.serializer.JsonSerializer
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 #Actuator
 management:
-  endpoint:
+  endpoints:
     web:
       exposure:
         include: health, info
-
