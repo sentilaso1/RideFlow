@@ -72,11 +72,11 @@ public class RideService {
 
     // To Update the Status, that is when a driver accepts a rider request we will change the status from mathcing to accepted
     // And assigns the driver ID
-    public void updateRideWithDriver(String rideId, String driveId){
+    public void updateRideWithDriver(String rideId, String driverId){
         Ride ride =rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        ride.setDrvierId(driveId);
+        ride.setDriverId(driverId);
         ride.setStatus(RideStatus.ACCEPTED);
         rideRepository.save(ride);
     }
@@ -163,7 +163,7 @@ public class RideService {
         RideResponse response = new RideResponse();
         response.setId(ride.getId());
         response.setRiderId(ride.getRiderId());
-        response.setDrvierId(ride.getDrvierId());
+        response.setDrvierId(ride.getDriverId());
         response.setPickupLatitude(ride.getPickupLatitude());
         response.setPickupLongitude(ride.getPickupLongitude());
         response.setPickupAddress(ride.getPickupAddress());
