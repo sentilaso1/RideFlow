@@ -81,8 +81,8 @@ public class RideService {
         rideRepository.save(ride);
     }
 
-    public RideResponse startRide(String rideID){
-        Ride ride =rideRepository.findById(rideID)
+    public RideResponse startRide(String rideId){
+        Ride ride =rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         if(ride.getStatus() != RideStatus.ACCEPTED){
@@ -95,8 +95,8 @@ public class RideService {
         return mapToResponse(ride);
     }
 
-    public RideResponse completeRide(String rideID){
-        Ride ride =rideRepository.findById(rideID)
+    public RideResponse completeRide(String rideId){
+        Ride ride =rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         if(ride.getStatus() != RideStatus.RIDE_STARTED){
@@ -120,8 +120,8 @@ public class RideService {
         return mapToResponse(ride);
     }
 
-    public RideResponse getRideById(String rideID){
-        Ride ride =rideRepository.findById(rideID)
+    public RideResponse getRideById(String rideId){
+        Ride ride =rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
         return mapToResponse(ride);
     }
