@@ -20,11 +20,11 @@ public class Ride {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    //Who requested the ride
+    // Who requested the ride
     @Column(nullable = false)
     private String riderId;
 
-    //Who accepted the ride (null until matched)
+    // Who accepted the ride (null until matched)
     private String driverId;
 
     @Column(nullable = false)
@@ -45,16 +45,16 @@ public class Ride {
     @Column(nullable = false)
     private String dropAddress;
 
-    //Ride status = tracks the lifecycle
+    // Ride status - tracks the lifecycle
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RideStatus status;
 
-    //Fare Details
+    // Fare Details
     private double estimatedFare;
     private double actualFare;
 
-    //Timestamps
+    // Timestamps
     @CreationTimestamp
     private LocalDateTime createdAt;
 

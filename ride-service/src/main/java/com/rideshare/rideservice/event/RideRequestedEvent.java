@@ -17,12 +17,12 @@ public class RideRequestedEvent {
     private String rideId;
     private String riderId;
 
-    //PICKUP
+    // PICKUP
     private double pickupLatitude;
     private double pickupLongitude;
     private String pickupAddress;
 
-    //DROP
+    // DROP
     private double dropLatitude;
     private double dropLongitude;
     private String dropAddress;
