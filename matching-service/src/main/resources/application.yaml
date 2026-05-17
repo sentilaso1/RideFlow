@@ -14,6 +14,17 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+            use:
+              type:
+                headers: false
+            value:
+              default:
+                type: com.rideshare.matchingservice.event.RideRequestedEvent
     # Kafka Producer
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer

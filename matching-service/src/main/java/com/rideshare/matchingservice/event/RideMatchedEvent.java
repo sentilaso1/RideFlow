@@ -19,5 +19,5 @@ public class RideMatchedEvent {
     private String driverId;
     private double driverLatitude;
     private double driverLongitude;
-    private double distanceToPickKm;
+    private double distanceToPickupKm;
 }
