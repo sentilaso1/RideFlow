@@ -1,367 +1,119 @@
-#  RideFlow Microservices System Design (IN PROGRESS)
+# RideFlow: Event-Driven Ride-Hailing Platform
 
-A production-inspired ride-sharing backend built to study and demonstrate real-world **system design concepts** for FAANG-level interviews. Built with Java, Spring Boot, Redis, MySQL, and Kafka.
+A ride-hailing backend built as Spring Boot microservices, with a live map web app on top. Riders request trips, drivers stream their GPS position, a matching service picks the best nearby driver, and every ride change is pushed to the browser in real time.
 
----
+**Stack:** Java 21 · Spring Boot 4.1 · Spring Cloud Gateway 5 · Apache Kafka 4 (KRaft) · Redis 8 (GEO) · MySQL 8.4 + Flyway · STOMP over WebSocket · Next.js 16 + React 19 + TypeScript · Docker Compose · GitHub Actions
 
-## 📌 Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Services](#services)
-- [Tech Stack](#tech-stack)
-- [Event Flow](#event-flow)
-- [Driver Matching Algorithm](#driver-matching-algorithm)
-- [Ride Status Lifecycle](#ride-status-lifecycle)
-- [API Endpoints](#api-endpoints)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-
----
-
-## Overview
-
-This project simulates how Uber's backend works under the hood — real-time driver tracking, ride matching, and event-driven communication between microservices. It is designed as a learning project for system design interviews, with a focus on:
-
-- Real-time geospatial queries with Redis
-- Event-driven architecture with Kafka
-- Clean microservice separation with Spring Boot
-- Persistent ride data with MySQL
-
----
+> New here? Follow **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** to build and run everything step by step.
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENT (Mobile App)                       │
-└───────────────────────────────┬─────────────────────────────────┘
-                                │ HTTP
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         RIDE SERVICE                             │
-│                         Port: 8083                               │
-│                                                                  │
-│  • Manages full ride lifecycle (REQUESTED → COMPLETED)           │
-│  • Calculates estimated fare (Haversine formula)                 │
-│  • Publishes RideRequestedEvent to Kafka                         │
-│  • Consumes RideMatchedEvent from Kafka                          │
-└──────────────┬──────────────────────────┬───────────────────────┘
-               │                          │
-        Kafka publish              Kafka consume
-     (ride.requested)            (ride.matched)
-               │                          │
-               ▼                          │
-┌──────────────────────────┐             │
-│     MATCHING SERVICE     │─────────────┘
-│       Port: 8084         │
-│                          │
-│  • Consumes ride.requested│
-│  • Calls location-service │
-│  • Scores & picks driver  │
-│  • Publishes ride.matched │
-└──────────┬───────────────┘
-           │ HTTP
-           ▼
-┌──────────────────────────┐        ┌──────────────────────┐
-│    LOCATION SERVICE      │        │        REDIS         │
-│       Port: 8082         │◄──────►│     Port: 6379       │
-│                          │        │                      │
-│  • Updates driver GPS    │        │  Geo commands:       │
-│  • Finds nearby drivers  │        │  GEOADD              │
-│  • Removes offline       │        │  GEOSEARCH           │
-│    drivers               │        │  GEODIST             │
-└──────────────────────────┘        │  ZREM                │
-                                    └──────────────────────┘
-┌──────────────────────────┐        ┌──────────────────────┐
-│       RIDE SERVICE       │        │        MYSQL         │
-│       (continued)        │◄──────►│     Port: 3306       │
-│                          │        │                      │
-│  • Persists all rides    │        │  Table: rides        │
-│  • Stores rider data     │        │  Database: uberapp   │
-└──────────────────────────┘        └──────────────────────┘
+```mermaid
+flowchart LR
+    Web["Next.js web app<br/>:3000"] -- "REST + WebSocket" --> GW["api-gateway<br/>Spring Cloud Gateway :8080"]
+    GW -- "/api/v1/locations/**" --> LOC["location-service :8082"]
+    GW -- "/api/v1/rides/** and /ws" --> RIDE["ride-service :8083"]
+    LOC <--> REDIS[("Redis<br/>GEO set + busy hash")]
+    RIDE <--> MYSQL[("MySQL<br/>rides")]
+    RIDE -- "ride.requested" --> K{{Kafka}}
+    K -- "ride.requested" --> MATCH["matching-service :8084"]
+    MATCH -- "search + reserve (HTTP)" --> LOC
+    MATCH -- "ride.matched / ride.unmatched" --> K
+    K -- "ride.matched / ride.unmatched" --> RIDE
+    RIDE -- "ride.status-changed" --> K
+    K -- "ride.status-changed" --> LOC
 ```
 
----
+| Service | Responsibility | Tech |
+|---|---|---|
+| **api-gateway** | Single entry point, routes REST and WebSocket traffic, CORS. Does not expose `/internal/**`. | Spring Cloud Gateway (WebFlux) |
+| **location-service** | Driver positions and availability. Nearby search, atomic driver reservation, release on trip end. | Redis GEOSEARCH, Lua scripts, Kafka consumer |
+| **ride-service** | Ride lifecycle state machine, fares, history, live push to browsers, matching timeout. | JPA + MySQL, Flyway, Kafka, STOMP WebSocket |
+| **matching-service** | Scores nearby drivers and reserves the best one that is still free. | Kafka, Spring `RestClient` |
 
-## Services
+## Ride flow
 
-### 🔵 Location Service — `port 8082`
-
-Responsible for all real-time driver location tracking using Redis geospatial commands.
-
-| Method | Description | Redis Command |
-|--------|-------------|---------------|
-| `updateDriverLocation()` | Updates driver GPS every 3 seconds | `GEOADD` |
-| `findNearbyDrivers()` | Finds drivers within a given radius | `GEORADIUS` |
-| `removeDriver()` | Removes driver when they go offline | `ZREM` |
-
-### 🟢 Ride Service — `port 8083`
-
-Manages the complete lifecycle of every ride and communicates with other services via Kafka.
-
-| Method | Description |
-|--------|-------------|
-| `requestRide()` | Creates ride, calculates fare, fires Kafka event |
-| `updateRideWithDriver()` | Assigns driver when matched |
-| `startRide()` | Starts ride if status is ACCEPTED |
-| `completeRide()` | Completes ride, records time and fare |
-| `cancelRide()` | Cancels ride at any point |
-
-### 🟡 Matching Service — `port 8084`
-
-The brain of the system. Listens to Kafka, scores nearby drivers, and publishes the best match.
-
-| Component | Description |
-|-----------|-------------|
-| `RideEventConsumer` | Kafka listener for `ride.requested` topic |
-| `MatchingService` | Scoring algorithm + location-service caller |
-| `findBestDriver()` | Weighted scoring — distance 70%, rating 30% |
-
----
-
-## Tech Stack
-
-| Technology | Role |
-|------------|------|
-| **Java + Spring Boot** | Core backend framework for all microservices |
-| **Redis** | Real-time geospatial driver location storage |
-| **MySQL** | Persistent storage for rides and rider data |
-| **Apache Kafka** | Event streaming between microservices |
-| **ZooKeeper** | Kafka distributed coordination |
-| **Docker** | Containerisation of Redis, MySQL, and Kafka |
-| **Lombok** | Boilerplate reduction (getters, constructors, logging) |
-| **Spring Data JPA / Hibernate** | ORM for MySQL interactions |
-
----
-
-## Event Flow
-
-This is how a complete ride flows through the system from request to driver assignment:
+1. The rider requests a ride. **ride-service** saves it as `MATCHING` and, **after the DB commit**, publishes `ride.requested`.
+2. **matching-service** asks location-service for available drivers within 5 km, ranks them, and walks the ranking, trying to **atomically reserve** each driver until one succeeds.
+3. It publishes `ride.matched` (or `ride.unmatched` if nobody is free). ride-service moves the ride to `ACCEPTED` (or `CANCELLED`).
+4. Every committed change is pushed over WebSocket to `/topic/rides/{id}`, `/topic/riders/{id}` and `/topic/drivers/{id}`, and published to `ride.status-changed`.
+5. When a ride is `COMPLETED` or `CANCELLED`, location-service consumes `ride.status-changed` and frees the driver.
 
 ```
-┌────────────┐     POST /api/v1/rides/request
-│   Rider    │──────────────────────────────────────────────────┐
-└────────────┘                                                  │
-                                                                ▼
-                                                    ┌─────────────────────┐
-                                                    │    Ride Service      │
-                                                    │                      │
-                                                    │ 1. Save ride to MySQL│
-                                                    │    status=REQUESTED  │
-                                                    │                      │
-                                                    │ 2. Calculate fare    │
-                                                    │    (Haversine)       │
-                                                    │                      │
-                                                    │ 3. Publish event to  │
-                                                    │    Kafka             │
-                                                    └──────────┬───────────┘
-                                                               │
-                                              Kafka: ride.requested
-                                                               │
-                                                               ▼
-                                                    ┌─────────────────────┐
-                                                    │  Matching Service    │
-                                                    │                      │
-                                                    │ 1. Consume event     │
-                                                    │                      │
-                                                    │ 2. Call location-    │
-                                                    │    service for       │
-                                                    │    nearby drivers    │
-                                                    │    (5km radius)      │
-                                                    │                      │
-                                                    │ 3. Score each driver │
-                                                    │    (distance + rating│
-                                                    │    weighted algo)    │
-                                                    │                      │
-                                                    │ 4. Pick best driver  │
-                                                    │                      │
-                                                    │ 5. Publish match     │
-                                                    └──────────┬───────────┘
-                                                               │
-                                               Kafka: ride.matched
-                                                               │
-                                                               ▼
-                                                    ┌─────────────────────┐
-                                                    │    Ride Service      │
-                                                    │                      │
-                                                    │ Consume match event  │
-                                                    │ Assign driverId      │
-                                                    │ status=ACCEPTED  ✅  │
-                                                    └─────────────────────┘
+REQUESTED -> MATCHING -> ACCEPTED -> DRIVER_ARRIVING -> RIDE_STARTED -> COMPLETED
+                 |           |              |
+                 +-----------+--------------+------> CANCELLED
 ```
 
----
+## Engineering highlights
 
-## Driver Matching Algorithm
+- **No double-booked drivers.** Reservation is a Redis Lua script that checks "online and free" and claims the driver in one atomic step, so concurrent matchers can never both win the same driver. Release is compare-and-delete, so a stale event cannot free a driver who has moved on to a new ride.
+- **No lost updates.** The `Ride` entity is a rich domain model: every transition goes through methods that enforce the state machine, and `@Version` optimistic locking makes a concurrent "rider cancels" vs "driver matched" clash fail loudly instead of overwriting.
+- **Events only for committed data.** Kafka and WebSocket messages are sent from a `@TransactionalEventListener(AFTER_COMMIT)`, so other services never act on a ride the database rolled back.
+- **Resilient messaging.** `ErrorHandlingDeserializer` turns malformed messages into handled errors; `DefaultErrorHandler` retries 3 times and then routes to a dead-letter topic. Late or duplicate matches are handled idempotently.
+- **Self-healing.** A scheduled sweeper cancels rides stuck in `MATCHING` past 60 s (for example if matching is down), so riders always get an answer.
+- **Clean API contract.** Bean Validation on every input, RFC 9457 Problem Details for every error (404 / 409 / 400 with field errors), money as `BigDecimal`, timestamps as UTC `Instant`.
+- **Deterministic, normalised scoring.** `0.7 × proximity + 0.3 × rating`, both scaled to 0–1, with a stable tie-breaker; ratings are behind an interface so a real driver-profile service can plug in.
+- **Production plumbing.** Flyway-managed schema, Java 21 virtual threads, Actuator liveness/readiness probes, layered non-root Docker images, Kafka 4 in KRaft mode, CI for backend, frontend and images.
 
-The matching-service uses a **weighted scoring algorithm** to select the best available driver:
+## API
 
-```
-Score = (1 / distance + 0.1) × 0.7  +  rating × 0.3
-         └──────────────────────┘      └──────────┘
-              Distance (70%)           Rating (30%)
-```
+All public endpoints go through the gateway at `http://localhost:8080`.
 
-- **Distance score** — closer drivers get a higher score. The `+ 0.1` prevents division by zero if a driver is at the exact pickup location
-- **Rating score** — currently simulated between 4.0–5.0. In production this would be fetched from a dedicated Driver Service
-- The driver with the **highest combined score** wins the ride
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/v1/locations/drivers/update` | Driver location ping `{driverId, latitude, longitude}` |
+| `GET` | `/api/v1/locations/drivers` | All online drivers with busy state |
+| `GET` | `/api/v1/locations/drivers/nearby?latitude=&longitude=&radius=&availableOnly=` | Nearby drivers |
+| `DELETE` | `/api/v1/locations/drivers/{driverId}` | Driver goes offline |
+| `POST` | `/api/v1/rides/estimate` | Fare estimate |
+| `POST` | `/api/v1/rides/request` | Request a ride (201) |
+| `GET` | `/api/v1/rides/{rideId}` | One ride |
+| `GET` | `/api/v1/rides/rider/{riderId}` | Rider history (latest 50) |
+| `GET` | `/api/v1/rides/driver/{driverId}` | Driver history (latest 50) |
+| `PUT` | `/api/v1/rides/{rideId}/arriving` · `/start` · `/complete` | Driver actions |
+| `PUT` | `/api/v1/rides/{rideId}/cancel?reason=` | Cancel |
+| `WS` | `/ws` (STOMP) | Live ride updates |
 
----
+Internal only (not routed by the gateway): `POST /internal/v1/drivers/{driverId}/reservations` on location-service.
 
-## Ride Status Lifecycle
-
-```
-                    ┌───────────┐
-                    │ REQUESTED │  ← Rider submits ride request
-                    └─────┬─────┘
-                          │ Kafka event fired
-                          ▼
-                    ┌───────────┐
-                    │  MATCHING │  ← Matching service searching for driver
-                    └─────┬─────┘
-                          │ Driver found
-                          ▼
-                    ┌───────────┐
-                    │  ACCEPTED │  ← Driver assigned to ride
-                    └─────┬─────┘
-                          │ Driver starts trip
-                          ▼
-                  ┌──────────────┐
-                  │ RIDE_STARTED │  ← Trip in progress
-                  └──────┬───────┘
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-       ┌───────────┐         ┌───────────┐
-       │ COMPLETED │         │ CANCELLED │
-       └───────────┘         └───────────┘
-```
-
----
-
-## API Endpoints
-
-### Location Service (`localhost:8082`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/location/update` | Update driver GPS location |
-| `GET` | `/api/v1/location/nearby` | Get nearby drivers within radius |
-| `DELETE` | `/api/v1/location/remove/{driverId}` | Remove driver (offline) |
-
-### Ride Service (`localhost:8083`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/rides/request` | Request a new ride |
-| `GET` | `/api/v1/rides/{rideId}` | Get ride by ID |
-| `GET` | `/api/v1/rides/rider/{riderId}` | Get all rides for a rider |
-| `PUT` | `/api/v1/rides/{rideId}/start` | Start a ride |
-| `PUT` | `/api/v1/rides/{rideId}/complete` | Complete a ride |
-| `PUT` | `/api/v1/rides/{rideId}/cancel` | Cancel a ride |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Java 17+
-- Docker & Docker Compose
-- Maven
-
-### 1. Start infrastructure
+## Quick start
 
 ```bash
-docker-compose up -d
+cp .env.example .env
+docker compose --profile app up --build
+# open http://localhost:3000
 ```
 
-This starts Redis (6379), MySQL (3306), and Kafka (9092) + ZooKeeper.
+Then: **Fleet** → "Add the 3 sample drivers" → **Ride** → "Use the sample Bangalore trip" → "Request ride" → watch it get matched → **Drive** as the assigned driver to start and complete it.
 
-### 2. Run the services
+Full instructions, local IDE setup and troubleshooting: **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)**.
 
-Start each service in order:
-
-```bash
-# Terminal 1 - Location Service
-cd location-service && mvn spring-boot:run
-
-# Terminal 2 - Ride Service
-cd ride-service && mvn spring-boot:run
-
-# Terminal 3 - Matching Service
-cd matching-service && mvn spring-boot:run
-```
-
-### 3. Verify all services are healthy
-
-```bash
-curl http://localhost:8082/actuator/health   # location-service
-curl http://localhost:8083/actuator/health   # ride-service
-curl http://localhost:8084/actuator/health   # matching-service
-```
-
----
-
-## Project Structure
+## Project structure
 
 ```
-developer_proj_uber_driver_locator/
-│
-├── docker-compose.yml                  # Redis, MySQL, Kafka, ZooKeeper
-│
-├── location-service/                   # Port 8082
-│   └── src/main/java/
-│       └── com/rideshare/locationservice/
-│           ├── config/
-│           │   └── RedisConfig.java    # Redis template + serializers
-│           ├── controller/
-│           │   └── LocationController.java
-│           ├── dto/
-│           │   └── NearByDriverResponse.java
-│           └── service/
-│               └── LocationService.java # GEOADD, GEORADIUS, ZREM
-│
-├── ride-service/                       # Port 8083
-│   └── src/main/java/
-│       └── com/rideshare/rideservice/
-│           ├── config/
-│           │   └── KafkaConfig.java    # ride.requested + ride.matched topics
-│           ├── controller/
-│           │   ├── RideController.java
-│           │   └── GlobalExceptionHandler.java
-│           ├── model/
-│           │   ├── Ride.java           # MySQL entity
-│           │   └── RideStatus.java     # Enum: REQUESTED → COMPLETED
-│           └── service/
-│               └── RideService.java    # Full ride lifecycle
-│
-└── matching-service/                   # Port 8084
-    └── src/main/java/
-        └── com/rideshare/matchingservice/
-            ├── client/
-            │   └── LocationServiceClient.java
-            ├── event/
-            │   ├── RideRequestedEvent.java
-            │   └── RideMatchedEvent.java
-            └── service/
-                ├── MatchingService.java      # Scoring algorithm
-                └── RideEventConsumer.java    # Kafka listener
+.
+├── docker-compose.yml          # Infra by default; --profile app for everything
+├── .github/workflows/ci.yml    # Backend verify, frontend lint/typecheck/build, Docker build
+├── backend/                    # Maven multi-module reactor (Spring Boot 4.1 parent)
+│   ├── pom.xml
+│   ├── Dockerfile              # One layered image per service (--build-arg SERVICE=...)
+│   ├── api-gateway/
+│   ├── location-service/       # Redis repository + Lua scripts in resources/scripts
+│   ├── ride-service/           # Domain model, Flyway migrations in resources/db/migration
+│   └── matching-service/
+├── frontend/                   # Next.js 16 app (Ride, Drive, Fleet screens)
+└── docs/BUILD_GUIDE.md
 ```
 
----
+## Roadmap
 
-## 📚 Concepts Demonstrated
+These are deliberate next steps, not oversights:
 
-- **Event-driven microservices** — services communicate via Kafka, never directly
-- **Geospatial indexing** — Redis geo commands for real-time location queries
-- **Weighted scoring algorithm** — distance + rating to pick the optimal driver
-- **Clean architecture** — controller → service → repository separation throughout
-- **Fault tolerance patterns** — dead letter queue placeholder for failed Kafka events
-- **Spring Boot best practices** — `@RestControllerAdvice`, Lombok, YAML config, Actuator
-
----
-
-*Built as a system design study project for FAANG interview preparation.*
+- **Authentication:** OAuth2/JWT at the gateway and role checks so only the assigned driver can start or complete a ride.
+- **Transactional outbox:** persist events in the same transaction and relay them with Debezium, closing the small gap where a crash between commit and send drops an event.
+- **Horizontal scaling of WebSockets:** replace the in-memory STOMP broker with a RabbitMQ broker relay.
+- **Integration tests:** Testcontainers for MySQL, Redis and Kafka.
+- **Observability:** Micrometer tracing with OpenTelemetry, Prometheus and Grafana dashboards.
+- **API docs:** springdoc-openapi once a release officially supports Spring Boot 4.1.
+- **Stale drivers:** expire drivers who stop sending location pings.

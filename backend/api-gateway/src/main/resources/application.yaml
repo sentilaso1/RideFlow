@@ -1,0 +1,46 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Never let a downstream CORS header duplicate the gateway's own.
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowed-origins: ${FRONTEND_ORIGINS:http://localhost:3000}
+                allowed-methods: [GET, POST, PUT, DELETE, OPTIONS]
+                allowed-headers: "*"
+                max-age: 3600
+          routes:
+            # Public driver-location API. /internal/** on the location service is intentionally NOT routed.
+            - id: location-service
+              uri: ${LOCATION_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/locations/**
+            - id: ride-service
+              uri: ${RIDE_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/rides/**
+            # STOMP-over-WebSocket endpoint for live ride updates.
+            - id: ride-updates-websocket
+              uri: ${RIDE_SERVICE_WS_URL:ws://localhost:8083}
+              predicates:
+                - Path=/ws/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      probes:
+        enabled: true

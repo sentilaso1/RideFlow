@@ -1,22 +1,21 @@
-# Maven
+# Java / Maven
 target/
 *.class
-*.jar
-*.war
+*.log
 
-# IntelliJ
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env*.local
+
+# IDE / OS
 .idea/
 *.iml
-*.iws
-*.ipr
-
-# Spring Boot
-*.log
-application-local.properties
-
-# OS
+.vscode/
 .DS_Store
 Thumbs.db
-
-# Docker
-*.env

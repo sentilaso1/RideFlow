@@ -1,0 +1,70 @@
+server:
+  port: ${PORT:8083}
+
+spring:
+  application:
+    name: ride-service
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:ride_db}?allowPublicKeyRetrieval=true&useSSL=false
+    username: ${DB_USERNAME:rideshare}
+    password: ${DB_PASSWORD:rideshare}
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    # Flyway owns the schema (src/main/resources/db/migration); Hibernate never alters tables.
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+      properties:
+        "[spring.json.add.type.headers]": false
+    consumer:
+      group-id: ride-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        "[spring.deserializer.value.delegate.class]": org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        "[spring.json.use.type.headers]": false
+        "[spring.json.trusted.packages]": com.rideshare.rideservice.messaging
+
+rideshare:
+  fare:
+    base-fare: 50
+    per-km: 12
+    currency: INR
+  matching:
+    timeout: 60s
+    sweep-interval-ms: 15000
+  websocket:
+    allowed-origins: ${FRONTEND_ORIGINS:http://localhost:3000}
+  kafka:
+    topics:
+      ride-requested: ride.requested
+      ride-matched: ride.matched
+      ride-unmatched: ride.unmatched
+      ride-status-changed: ride.status-changed
+      partitions: 3
+      replicas: 1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

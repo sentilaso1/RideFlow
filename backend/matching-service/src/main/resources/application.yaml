@@ -1,0 +1,51 @@
+server:
+  port: ${PORT:8084}
+
+spring:
+  application:
+    name: matching-service
+  threads:
+    virtual:
+      enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: matching-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        "[spring.deserializer.value.delegate.class]": org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        "[spring.json.value.default.type]": com.rideshare.matchingservice.event.RideRequestedEvent
+        "[spring.json.use.type.headers]": false
+        "[spring.json.trusted.packages]": com.rideshare.matchingservice.event
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      acks: all
+      properties:
+        "[spring.json.add.type.headers]": false
+
+rideshare:
+  matching:
+    search-radius-km: 5.0
+    candidate-limit: 10
+    distance-weight: 0.7
+    location-service-url: ${LOCATION_SERVICE_URL:http://localhost:8082}
+  kafka:
+    topics:
+      ride-requested: ride.requested
+      ride-matched: ride.matched
+      ride-unmatched: ride.unmatched
+      partitions: 3
+      replicas: 1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
