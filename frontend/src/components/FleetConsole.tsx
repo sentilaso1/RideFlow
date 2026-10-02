@@ -61,7 +61,7 @@ export function FleetConsole() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-1">
         <Button busy={seed.isPending} onClick={() => seed.mutate()}>
           Add the 3 sample drivers
         </Button>
@@ -92,7 +92,7 @@ export function FleetConsole() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-semibold">{driver.driverId}</span>
-                <span className="block text-xs text-muted">
+                <span className="block text-xs text-muted tabular-nums">
                   {driver.busy
                     ? `On ride ${driver.currentRideId ? shortId(driver.currentRideId) : ""}`
                     : formatCoords({ lat: driver.latitude, lng: driver.longitude })}

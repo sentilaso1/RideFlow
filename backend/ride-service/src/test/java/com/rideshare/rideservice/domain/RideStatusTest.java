@@ -19,8 +19,8 @@ class RideStatusTest {
     }
 
     @Test
-    void driverMaySkipArrivingAndStartDirectly() {
-        assertThat(ACCEPTED.canTransitionTo(RIDE_STARTED)).isTrue();
+    void tripCannotStartBeforeDriverReachesPickup() {
+        assertThat(ACCEPTED.canTransitionTo(RIDE_STARTED)).isFalse();
     }
 
     @Test

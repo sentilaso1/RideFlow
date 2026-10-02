@@ -14,6 +14,7 @@ const PING_INTERVAL_MS = 3_000; // same cadence as the original "driver phone" c
 const MOVE_INTERVAL_MS = 100; // local simulation tick, so the car glides instead of hopping
 const DRIVE_SPEED_KMH = 135; // 3x city pace: slow enough to watch, quick enough to finish
 const ARRIVAL_RADIUS_KM = 0.03; // within 30 m of a stop counts as arrived
+const AT_STOP_KM = 0.1; // manual driving: the stop buttons unlock within 100 m
 
 /** Where the simulated car is heading for a given ride state. */
 const targetOf = (ride: Ride): LatLng =>
@@ -90,21 +91,40 @@ export function DriverConsole() {
   // ── Follow whichever driver matching picked ──
   // location-service reports `currentRideId` per driver, so the assigned one can be
   // spotted without a new endpoint: no need to type "driver:3" by hand.
+  // Never jump away from a driver who is mid-trip: with two rides in flight the
+  // other matched driver may be listed first, and switching would strand this one.
   useEffect(() => {
-    if (!autoAssign) return;
-    const assigned = drivers.data?.find((driver) => driver.currentRideId);
-    if (!assigned || assigned.driverId === driverId) return;
+    if (!autoAssign || currentRide) return;
+    const list = drivers.data ?? [];
+    if (list.some((driver) => driver.driverId === driverId && driver.currentRideId)) return;
+    const assigned = list.find((driver) => driver.currentRideId);
+    if (!assigned) return;
     const at = { lat: assigned.latitude, lng: assigned.longitude };
     positionRef.current = at;
     setDriverId(assigned.driverId);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- start from where that driver actually is
     setPosition(at);
-  }, [autoAssign, drivers.data, driverId, setDriverId]);
+  }, [autoAssign, currentRide, drivers.data, driverId, setDriverId]);
+
+  // ── Start from where this driver really is ──
+  // While offline the car would otherwise sit at the sample start point, hiding the
+  // driver's real marker. Synced once per driver id, so a tap on the map still wins.
+  const syncedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (online || syncedRef.current === driverId) return;
+    const known = drivers.data?.find((driver) => driver.driverId === driverId);
+    if (!known) return;
+    syncedRef.current = driverId;
+    const at = { lat: known.latitude, lng: known.longitude };
+    positionRef.current = at;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adopt the position location-service reports
+    setPosition(at);
+  }, [online, drivers.data, driverId]);
 
   // ── Driving simulation ──
-  // Ticks at 10 Hz so the marker moves continuously, and advances the ride itself on
-  // arrival: pickup reached -> "arriving", drop reached -> "complete". Starting the
-  // trip is deliberately left to the rider.
+  // Ticks at 10 Hz so the marker moves continuously, and marks "arriving" itself once
+  // the pickup is reached. Starting the trip and finishing it at the drop-off are left
+  // to the people involved: the car just parks at B until the driver taps "Ride finished".
   //
   // Each step is sized from the wall-clock time since the previous tick, never from
   // MOVE_INTERVAL_MS. Chrome clamps timers in a background tab to >= 1 s, and to roughly
@@ -131,8 +151,8 @@ export function DriverConsole() {
       setPosition(next);
 
       if (distanceKm(next, target) > ARRIVAL_RADIUS_KM) return;
-      const action = ride.status === "ACCEPTED" ? "arriving" : ride.status === "RIDE_STARTED" ? "complete" : null;
-      if (!action) return;
+      if (ride.status !== "ACCEPTED") return;
+      const action = "arriving";
       const key = `${ride.id}:${action}`;
       if (firedRef.current.has(key)) return;
       firedRef.current.add(key);
@@ -212,6 +232,8 @@ export function DriverConsole() {
 
   const target = currentRide?.status === "RIDE_STARTED" ? drop : pickup;
   const toTarget = target ? distanceKm(position, target) : null;
+  const atTarget = toTarget !== null && toTarget <= AT_STOP_KM;
+  const approach = pickup && currentRide?.status === "ACCEPTED" ? { from: position, to: pickup } : null;
   const pending = rideAction.isPending ? rideAction.variables?.action : null;
 
   const panel = (
@@ -256,7 +278,7 @@ export function DriverConsole() {
             ? `Sending location every ${PING_INTERVAL_MS / 1000} s${lastPing ? `, last at ${lastPing.toLocaleTimeString()}` : ""}`
             : "Tap the map to choose where you start, then go online."}
         </p>
-        <p className="mt-1 text-xs text-muted">{formatCoords(position)}</p>
+        <p className="mt-1 text-xs text-muted tabular-nums">{formatCoords(position)}</p>
       </div>
       {pingError && <Notice>{pingError}</Notice>}
       {!online && currentRide && (
@@ -298,39 +320,58 @@ export function DriverConsole() {
               <span>{formatFare(currentRide.estimatedFare)}</span>
               {toTarget !== null && (
                 <span className="text-muted">
-                  {toTarget < 0.05 ? "You are there" : `${formatKm(toTarget)} to ${currentRide.status === "RIDE_STARTED" ? "drop-off" : "pickup"}`}
+                  {atTarget ? "You are there" : `${formatKm(toTarget)} to ${currentRide.status === "RIDE_STARTED" ? "drop-off" : "pickup"}`}
                 </span>
               )}
             </div>
 
             {currentRide.status === "DRIVER_ARRIVING" && (
               <p className="rounded-lg bg-signal/10 px-3 py-2 text-sm">
-                Waiting for {currentRide.riderId} to start the trip from the Ride screen.
+                You are at the pickup. Start the trip once {currentRide.riderId} is in the car (they can also start it from the Ride screen).
               </p>
             )}
 
+            {currentRide.status === "ACCEPTED" && !atTarget && (
+              <p className="text-sm text-muted">Drive to the pickup (A) first. You can mark arrival once you are there.</p>
+            )}
+            {currentRide.status === "RIDE_STARTED" &&
+              (atTarget ? (
+                <p className="rounded-lg bg-pickup/10 px-3 py-2 text-sm">
+                  You have reached the drop-off (B). Tap <span className="font-semibold">Ride finished</span> once{" "}
+                  {currentRide.riderId} is out of the car.
+                </p>
+              ) : (
+                <p className="text-sm text-muted">Drive the rider to the drop-off (B). You can finish the ride once you are there.</p>
+              ))}
+
+            {/* One step at a time: reach A, pick up, then drive to B. */}
             <div className="grid grid-cols-2 gap-2">
               {currentRide.status === "ACCEPTED" && (
                 <Button
-                  variant="secondary"
+                  className="col-span-2"
+                  disabled={!atTarget}
                   busy={pending === "arriving"}
                   onClick={() => rideAction.mutate({ action: "arriving", rideId: currentRide.id })}
                 >
-                  Arriving now
+                  Arrived at pickup
                 </Button>
               )}
-              {(currentRide.status === "ACCEPTED" || currentRide.status === "DRIVER_ARRIVING") && (
-                <Button busy={pending === "start"} onClick={() => rideAction.mutate({ action: "start", rideId: currentRide.id })}>
-                  Start trip
+              {currentRide.status === "DRIVER_ARRIVING" && (
+                <Button
+                  className="col-span-2"
+                  busy={pending === "start"}
+                  onClick={() => rideAction.mutate({ action: "start", rideId: currentRide.id })}
+                >
+                  Rider picked up, start trip
                 </Button>
               )}
-              {currentRide.status === "RIDE_STARTED" && (
+              {currentRide.status === "RIDE_STARTED" && atTarget && (
                 <Button
                   className="col-span-2"
                   busy={pending === "complete"}
                   onClick={() => rideAction.mutate({ action: "complete", rideId: currentRide.id })}
                 >
-                  Complete trip
+                  Ride finished
                 </Button>
               )}
               {currentRide.status !== "RIDE_STARTED" && (
@@ -373,7 +414,7 @@ export function DriverConsole() {
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   <StatusPill status={ride.status} />
-                  <span className="text-xs text-muted">{formatFare(ride.actualFare ?? 0)}</span>
+                  <span className="text-xs text-muted tabular-nums">{formatFare(ride.actualFare)}</span>
                 </span>
               </li>
             ))}
@@ -390,6 +431,7 @@ export function DriverConsole() {
           center={SAMPLE.center}
           pickup={pickup}
           drop={drop}
+          approach={approach}
           cars={cars}
           focus={focus}
           onMapClick={currentRide && autoDrive ? undefined : moveTo}

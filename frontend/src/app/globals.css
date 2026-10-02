@@ -39,7 +39,6 @@ body {
   background: var(--kerb);
   color: var(--asphalt);
   font-family: var(--font-sans);
-  font-feature-settings: "tnum" 1;
   -webkit-font-smoothing: antialiased;
 }
 

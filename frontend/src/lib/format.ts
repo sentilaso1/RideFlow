@@ -50,7 +50,8 @@ export const SAMPLE = {
   pickup: { position: { lat: 12.9716, lng: 77.5946 } satisfies LatLng, address: "MG Road, Bangalore" },
   drop: { position: { lat: 12.9352, lng: 77.6245 } satisfies LatLng, address: "Koramangala, Bangalore" },
   drivers: [
-    { driverId: "driver:1", position: { lat: 12.9716, lng: 77.5946 } },
+    // About 2 km from the sample pickup, so the drive to A is visible before the trip.
+    { driverId: "driver:1", position: { lat: 12.984, lng: 77.6075 } },
     { driverId: "driver:2", position: { lat: 12.98, lng: 77.58 } },
     { driverId: "driver:3", position: { lat: 12.96, lng: 77.61 } },
   ],

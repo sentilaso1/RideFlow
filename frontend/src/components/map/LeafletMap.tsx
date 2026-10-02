@@ -70,7 +70,8 @@ function CarMarker({ car }: { car: MapCar }) {
       ref={markerRef}
       position={toTuple(car.position)}
       icon={icon}
-      zIndexOffset={car.variant === "mine" ? 1000 : 0}
+      // Above the A/B pins (2000), so the assigned car stays visible while it waits at the pickup.
+      zIndexOffset={car.variant === "mine" ? 3000 : 0}
       keyboard={false}
     >
       <Tooltip direction="top" offset={[0, -12]}>
@@ -124,7 +125,7 @@ function ResizeWatcher() {
   return null;
 }
 
-export default function LeafletMap({ center, pickup, drop, cars = [], focus = [], onMapClick, cursor }: RideMapProps) {
+export default function LeafletMap({ center, pickup, drop, approach, cars = [], focus = [], onMapClick, cursor }: RideMapProps) {
   const route = useMemo(() => (pickup && drop ? [toTuple(pickup), toTuple(drop)] : null), [pickup, drop]);
   const fitKey = focus.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
 
@@ -158,6 +159,13 @@ export default function LeafletMap({ center, pickup, drop, cars = [], focus = []
           <Polyline positions={route} pathOptions={{ color: "#ffffff", weight: 9, opacity: 0.9 }} />
           <Polyline positions={route} pathOptions={{ color: "#2f5bea", weight: 5, dashArray: "1 10", lineCap: "round" }} />
         </>
+      )}
+
+      {approach && (
+        <Polyline
+          positions={[toTuple(approach.from), toTuple(approach.to)]}
+          pathOptions={{ color: "#1c2230", weight: 3, opacity: 0.7, dashArray: "6 8" }}
+        />
       )}
 
       {cars.map((car) => (

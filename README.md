@@ -275,7 +275,7 @@ Releasing a driver uses the same idea in reverse (`release-driver.lua`): delete 
 
 ### 4. Ride lifecycle
 
-Every transition goes through a method on the `Ride` entity, which checks it against this state machine and throws `409 Conflict` on an illegal move. A trip in progress cannot be cancelled, only completed.
+Every transition goes through a method on the `Ride` entity, which checks it against this state machine and throws `409 Conflict` on an illegal move. The driver must reach the pickup before the trip can start, and a trip in progress cannot be cancelled, only completed.
 
 ```mermaid
 stateDiagram-v2
@@ -283,10 +283,9 @@ stateDiagram-v2
     REQUESTED --> MATCHING: saved, ride.requested sent
     MATCHING --> ACCEPTED: ride.matched
     MATCHING --> CANCELLED: ride.unmatched, timeout or rider cancels
-    ACCEPTED --> DRIVER_ARRIVING: driver near pickup
-    ACCEPTED --> RIDE_STARTED: driver starts trip
+    ACCEPTED --> DRIVER_ARRIVING: driver reaches pickup
     ACCEPTED --> CANCELLED: rider or driver cancels
-    DRIVER_ARRIVING --> RIDE_STARTED: driver starts trip
+    DRIVER_ARRIVING --> RIDE_STARTED: rider picked up
     DRIVER_ARRIVING --> CANCELLED: rider or driver cancels
     RIDE_STARTED --> COMPLETED: driver completes, fare charged
     COMPLETED --> [*]
@@ -480,7 +479,7 @@ Each should return `{"status":"UP",...}`. In Option A only the gateway is publis
 2. **Ride** tab: click **Use the sample Bangalore trip**. The fare estimate appears.
 3. Click **Request ride**. Within a second or two the status moves from "Finding a driver" to "Driver assigned", pushed over WebSocket. The badge in the panel header says **Live**.
 4. Open the **Drive** tab in a second window. It follows the assigned driver automatically. Click **Go online**.
-5. With "Drive automatically" ticked, the car drives to the pickup. Click **Start trip** (on either the Ride or the Drive tab), let it drive to the drop-off, and it completes.
+5. With "Drive automatically" ticked, the car drives to the pickup (A). Once it is there, start the trip with **Start ride** on the Ride tab or **Rider picked up, start trip** on the Drive tab. The car drives to the drop-off (B); click **Ride finished** on the Drive tab to end the ride.
 6. Back on **Ride**, the trip shows as completed with the charged fare. On **Fleet**, the driver is free again.
 
 Worth trying as well: take every driver offline and request a ride (it is cancelled with "No drivers available near the pickup"), or request a second ride while one is active (you get a `409`).

@@ -113,7 +113,7 @@ This sequence shows every part of the system working together.
 2. **Ride** tab: click **Use the sample Bangalore trip**. The fare estimate appears.
 3. Click **Request ride**. Within a second or two the status line moves from "Finding a driver" to "Driver assigned", pushed over WebSocket. The badge in the panel header should say **Live**.
 4. Note which driver was assigned (for example `driver:1`). Open the **Drive** tab in a second browser window, enter that driver id, and click **Go online**.
-5. The trip appears. With "Drive automatically" ticked, the car moves towards the pickup. Click **Start trip**, let it drive to the drop-off, then click **Complete trip**.
+5. The trip appears. With "Drive automatically" ticked, the car drives to the pickup (A). Once it is there, click **Rider picked up, start trip**, let it drive to the drop-off (B), then click **Ride finished**.
 6. Back on **Ride**, the trip shows as completed with the charged fare. On **Fleet**, the driver is free again.
 
 Things worth showing off:

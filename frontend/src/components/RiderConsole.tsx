@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RideMap, type MapCar } from "@/components/map/RideMap";
 import { MapLayout } from "@/components/Nav";
 import {
@@ -145,10 +145,33 @@ export function RiderConsole() {
   }, [pickup, drivers.data]);
 
   const activeRide = currentRideId ? ride.data : undefined;
+  const rideOver = activeRide !== undefined && isTerminal(activeRide.status);
+
+  // The moment a ride the rider was following finishes, drop its A and B: the map is
+  // clear and the next tap sets a new pickup. Opening an old ride from history does not
+  // count, so stops being set for the next booking survive a look at past trips.
+  const followedRideRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeRide) return;
+    if (!rideOver) {
+      followedRideRef.current = activeRide.id;
+      return;
+    }
+    if (followedRideRef.current !== activeRide.id) return;
+    followedRideRef.current = null;
+    setPickup(null);
+    setDrop(null);
+    setPlacing("pickup");
+  }, [activeRide, rideOver]);
 
   // ── Map ──
-  const shownPickup = activeRide ? { lat: activeRide.pickupLatitude, lng: activeRide.pickupLongitude } : pickup?.position;
-  const shownDrop = activeRide ? { lat: activeRide.dropLatitude, lng: activeRide.dropLongitude } : drop?.position;
+  // A finished ride keeps its summary in the panel but no longer pins A and B on the map.
+  const shownPickup = activeRide
+    ? rideOver ? undefined : { lat: activeRide.pickupLatitude, lng: activeRide.pickupLongitude }
+    : pickup?.position;
+  const shownDrop = activeRide
+    ? rideOver ? undefined : { lat: activeRide.dropLatitude, lng: activeRide.dropLongitude }
+    : drop?.position;
   const cars: MapCar[] = (drivers.data ?? []).map((d) => ({
     driverId: d.driverId,
     position: { lat: d.latitude, lng: d.longitude },
@@ -157,6 +180,13 @@ export function RiderConsole() {
     smooth: true,
   }));
   const focus = [shownPickup, shownDrop].filter((p): p is LatLng => Boolean(p));
+
+  // Until pickup, the driver's leg runs from wherever the car is to A; the A-B route comes after.
+  const assigned = drivers.data?.find((d) => d.driverId === activeRide?.driverId);
+  const approach =
+    activeRide && assigned && (activeRide.status === "ACCEPTED" || activeRide.status === "DRIVER_ARRIVING")
+      ? { from: { lat: assigned.latitude, lng: assigned.longitude }, to: { lat: activeRide.pickupLatitude, lng: activeRide.pickupLongitude } }
+      : null;
 
   const placeStop = (position: LatLng) => {
     if (activeRide) return;
@@ -182,7 +212,16 @@ export function RiderConsole() {
     cancelRide.reset();
   };
 
+  // A ride the rider hid with "Hide" is still running; the backend allows one at a time.
+  const hiddenRide = activeRide ? undefined : history.data?.find((r) => !isTerminal(r.status));
+
+  const showRide = (rideId: string) => {
+    setDismissedRideId(null);
+    setViewedRideId(rideId);
+  };
+
   const canRequest =
+    !hiddenRide &&
     riderId.trim() !== "" &&
     pickup !== null &&
     drop !== null &&
@@ -237,6 +276,7 @@ export function RiderConsole() {
       </div>
 
       {nearbyCount !== null &&
+        !hiddenRide &&
         (nearbyCount === 0 ? (
           <Notice tone="info">
             No available drivers within {SEARCH_RADIUS_KM} km of the pickup. Add some from Drive or Fleet first,
@@ -261,12 +301,23 @@ export function RiderConsole() {
       )}
       {estimate.error && <Notice>{estimate.error.message}</Notice>}
 
+      {hiddenRide && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-route/10 px-3 py-2 text-sm text-route-ink" role="status">
+          <span>
+            You have a ride in progress to {hiddenRide.dropAddress}. Finish or cancel it before booking another.
+          </span>
+          <Button variant="secondary" className="min-h-8 shrink-0 px-3" onClick={() => showRide(hiddenRide.id)}>
+            Show ride
+          </Button>
+        </div>
+      )}
+
       <Button className="w-full" disabled={!canRequest} busy={requestRide.isPending} onClick={() => requestRide.mutate()}>
         Request ride
       </Button>
       {requestRide.error && <Notice>{requestRide.error.message}</Notice>}
 
-      <RideHistory rides={history.data} loading={history.isLoading} error={history.error} onSelect={setViewedRideId} />
+      <RideHistory rides={history.data} loading={history.isLoading} error={history.error} onSelect={showRide} />
     </Panel>
   );
 
@@ -278,6 +329,7 @@ export function RiderConsole() {
           center={SAMPLE.center}
           pickup={shownPickup}
           drop={shownDrop}
+          approach={approach}
           cars={cars}
           focus={focus}
           onMapClick={placeStop}
@@ -332,7 +384,7 @@ function StopInput({
               onChange={(e) => onAddressChange(e.target.value)}
               className="w-full bg-transparent font-medium focus:outline-none"
             />
-            <p className="text-xs text-muted">{formatCoords(stop.position)}</p>
+            <p className="text-xs text-muted tabular-nums">{formatCoords(stop.position)}</p>
           </>
         ) : (
           <p className="font-medium text-muted">{placing ? `Tap the map to set the ${label.toLowerCase()}` : `No ${label.toLowerCase()} yet`}</p>
@@ -430,7 +482,7 @@ function ActiveRide({
       {!terminal && ride.status !== "DRIVER_ARRIVING" && (
         <p className="text-xs text-muted">
           {ride.status === "RIDE_STARTED"
-            ? "You are on your way. The trip completes itself when the car reaches the drop-off."
+            ? "You are on your way. Your driver will end the ride once you reach the drop-off."
             : `${ride.driverId ?? "Your driver"} is driving to the pickup. Keep the Drive screen open in another window to watch it move.`}
         </p>
       )}
@@ -540,7 +592,7 @@ function RideHistory({
               </span>
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <StatusPill status={ride.status} />
-                <span className="text-xs text-muted">
+                <span className="text-xs text-muted tabular-nums">
                   {ratings[ride.id] !== undefined && (
                     <span className="mr-1.5 text-signal" title={`Rated ${ratings[ride.id]} of 5`}>
                       {"\u2605".repeat(ratings[ride.id])}

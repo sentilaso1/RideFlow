@@ -17,6 +17,8 @@ export interface RideMapProps {
   pickup?: LatLng | null;
   drop?: LatLng | null;
   cars?: MapCar[];
+  /** The assigned car's way to the pickup, drawn until the rider is picked up. */
+  approach?: { from: LatLng; to: LatLng } | null;
   /** Points to keep in view; the map refits only when these change. */
   focus?: LatLng[];
   onMapClick?: (position: LatLng) => void;

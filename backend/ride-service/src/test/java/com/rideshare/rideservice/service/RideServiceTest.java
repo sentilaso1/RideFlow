@@ -130,6 +130,16 @@ class RideServiceTest {
     }
 
     @Test
+    void startingBeforeTheDriverReachesThePickupIsRejected() {
+        Ride ride = matchingRide();
+        ride.assignDriver("driver:2", NOW);
+        when(repository.findById("r1")).thenReturn(Optional.of(ride));
+
+        assertThatThrownBy(() -> service.startRide("r1")).isInstanceOf(InvalidRideStateException.class);
+        assertThat(ride.getStatus()).isEqualTo(RideStatus.ACCEPTED);
+    }
+
+    @Test
     void unknownRideIsNotFound() {
         when(repository.findById("missing")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.getRide("missing")).isInstanceOf(RideNotFoundException.class);
