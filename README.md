@@ -1,10 +1,22 @@
 # RideFlow: Event-Driven Ride-Hailing Platform
 
+[![CI](https://github.com/sentilaso1/RideFlow/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sentilaso1/RideFlow/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
+![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-4-231F20?logo=apachekafka)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs)
+![Docker Compose](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+
 A ride-hailing backend built as Spring Boot microservices, with a live map web app on top. Riders request trips, drivers stream their GPS position, a matching service picks the best nearby driver, and every ride change is pushed to the browser in real time.
 
 **Stack:** Java 21 · Spring Boot 4.1 · Spring Cloud Gateway 5 · Apache Kafka 4 (KRaft) · Redis 8 (GEO) · MySQL 8.4 + Flyway · STOMP over WebSocket · Next.js 16 + React 19 + TypeScript · Docker Compose · GitHub Actions
 
 > New here? Follow **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** to build and run everything step by step.
+
+## Demo
+
+<!-- Record the flow under "Quick start" (request ride -> matched -> drive -> complete), save it as docs/demo.gif, and uncomment the line below. -->
+<!-- ![RideFlow demo: a ride is requested, matched to the nearest driver and tracked live](docs/demo.gif) -->
 
 ## Architecture
 
@@ -78,6 +90,8 @@ All public endpoints go through the gateway at `http://localhost:8080`.
 Internal only (not routed by the gateway): `POST /internal/v1/drivers/{driverId}/reservations` on location-service.
 
 ## Quick start
+
+**Prerequisites:** Docker with Compose v2 and about 6 GB of free RAM. You don't need Java or Node installed; everything builds inside containers.
 
 ```bash
 cp .env.example .env
