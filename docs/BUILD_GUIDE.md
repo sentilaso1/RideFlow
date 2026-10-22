@@ -201,27 +201,27 @@ Business settings live in each service's `application.yaml` under `rideshare.*`:
 
 ## 11. Publish it on GitHub
 
+This checkout uses `https://github.com/sentilaso1/RideFlow.git` as its destination. Inspect the local state and the destination branch before publishing:
+
 ```bash
-git init
-git add .
-git commit -m "RideFlow: event-driven ride-hailing platform"
-git branch -M main
-git remote add origin https://github.com/<you>/rideshare.git
-git push -u origin main
+git remote -v
+git status
+git fetch origin
 ```
 
-The CI workflow runs on every push. Once it passes, add its status badge to the top of the README.
+For a new, empty destination, publish with `git push -u origin main`. If the destination already has history, compare it with the local branch first. Rewritten history changes commit IDs; coordinate with collaborators before replacing an existing branch.
 
-Before pushing, confirm that `.env` is not staged (`git status`). If the original repository ever contained a real database password, change that password, because it remains in the old repository's history.
+The CI workflow runs on pushes to `main` and pull requests. Confirm its result on this repository before presenting a passing badge. Keep `.env` out of commits.
 
-## 12. Describing it on your resume
+## 12. Discussing the project in an interview
 
-Example bullet points, which you should adjust to what you can confidently discuss in an interview:
+Useful technical topics to demonstrate include:
 
-- Built an event-driven ride-hailing platform of 4 Spring Boot 4 microservices (Java 21) communicating over Apache Kafka, behind a Spring Cloud Gateway, with a Next.js live-map client.
-- Designed real-time driver matching on Redis GEO indexes with an atomic Lua-script reservation that prevents double-booking under concurrent requests.
-- Modelled the ride lifecycle as an enforced state machine with JPA optimistic locking, Flyway migrations and after-commit event publishing, eliminating lost updates and phantom events.
-- Implemented fault tolerance with Kafka retries, dead-letter topics, idempotent consumers and a timeout sweeper; pushed live updates to browsers over STOMP WebSockets.
-- Containerised the system with layered, non-root Docker images and Docker Compose (Kafka in KRaft mode), with GitHub Actions CI for build, tests and images.
+- How Kafka connects ride requests, matching results, and driver release.
+- How Redis GEO finds nearby candidates and Lua makes reservations atomic.
+- How the ride domain enforces pickup-before-start transitions and optimistic locking detects conflicting updates.
+- How after-commit publication avoids exposing rolled-back data, while leaving a crash window that an outbox would address.
+- How the browser consumes STOMP updates and falls back to polling.
+- Which cases unit tests cover and where integration or load testing is still needed.
 
-Be ready to explain the trade-offs too: why events are sent after commit rather than through an outbox, why the WebSocket broker is in-memory, and what you would add for authentication. The Roadmap section of the README lists these.
+Walk through a ride locally and explain the current limits: no authentication, simulated matching ratings, geographic rather than road distance, and an in-memory WebSocket broker. See the README's scope and next steps for planned improvements.
